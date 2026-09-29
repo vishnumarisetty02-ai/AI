@@ -18,6 +18,7 @@ import tempfile
 from datetime import datetime
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 
@@ -162,6 +163,297 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
+
+def render_animated_globe():
+
+    components.html(
+        """
+        <!doctype html>
+        <html>
+        <head>
+        <style>
+            * { box-sizing: border-box; }
+            html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                overflow: hidden;
+                background: transparent;
+                font-family: 'Segoe UI', sans-serif;
+            }
+            .hero {
+                position: relative;
+                height: 276px;
+                overflow: hidden;
+                border: 1px solid rgba(15, 76, 129, .16);
+                border-radius: 10px;
+                background:
+                    radial-gradient(ellipse at 76% 50%, rgba(31, 163, 160, .18), transparent 37%),
+                    linear-gradient(112deg, #f5fbfa 0%, #e9f5f2 54%, #e1f1ef 100%);
+            }
+            .hero::before {
+                position: absolute;
+                inset: 0;
+                background-image:
+                    linear-gradient(rgba(17, 90, 108, .045) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(17, 90, 108, .045) 1px, transparent 1px);
+                background-size: 32px 32px;
+                content: '';
+                mask-image: linear-gradient(90deg, transparent, black);
+            }
+            .copy {
+                position: absolute;
+                z-index: 2;
+                top: 50%;
+                left: clamp(22px, 5vw, 64px);
+                max-width: 43%;
+                transform: translateY(-50%);
+            }
+            .eyebrow {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 13px;
+                color: #147c79;
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: 1.2px;
+            }
+            .pulse {
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+                background: #20a477;
+                box-shadow: 0 0 0 4px rgba(32, 164, 119, .12);
+            }
+            h2 {
+                margin: 0;
+                color: #123744;
+                font-size: clamp(23px, 3.2vw, 35px);
+                line-height: 1.12;
+                font-weight: 750;
+            }
+            .description {
+                max-width: 360px;
+                margin: 12px 0 0;
+                color: #526b70;
+                font-size: 13px;
+                line-height: 1.55;
+            }
+            .coordinates {
+                margin-top: 18px;
+                color: #147c79;
+                font: 10px/1.5 'Consolas', monospace;
+            }
+            #scene {
+                position: absolute;
+                inset: 0 0 0 44%;
+            }
+            #scene canvas { display: block; width: 100%; height: 100%; }
+            .fallback-globe {
+                position: absolute;
+                top: 50%;
+                left: 55%;
+                width: 210px;
+                aspect-ratio: 1;
+                border: 1px solid rgba(61, 195, 184, .7);
+                border-radius: 50%;
+                background:
+                    repeating-linear-gradient(0deg, transparent 0 25px, rgba(114, 221, 199, .3) 26px 27px),
+                    repeating-linear-gradient(90deg, transparent 0 25px, rgba(114, 221, 199, .3) 26px 27px),
+                    radial-gradient(circle at 35% 35%, #388c8b, #103c54 72%);
+                box-shadow: inset -20px -12px 38px rgba(4, 27, 42, .55), 0 0 32px rgba(27, 153, 150, .2);
+                transform: translate(-50%, -50%);
+                animation: turn 18s linear infinite;
+            }
+            .fallback-globe::after {
+                position: absolute;
+                inset: 20% -12%;
+                border: 1px solid rgba(22, 141, 146, .7);
+                border-radius: 50%;
+                content: '';
+                transform: rotate(-24deg);
+            }
+            .fallback-globe.hidden { display: none; }
+            @keyframes turn { to { transform: translate(-50%, -50%) rotate(360deg); } }
+            @media (max-width: 600px) {
+                .hero { height: 248px; }
+                .copy { left: 20px; max-width: 58%; }
+                h2 { font-size: 24px; }
+                .description { max-width: 235px; font-size: 12px; }
+                .coordinates { font-size: 9px; }
+                #scene { left: 40%; }
+                .fallback-globe { left: 65%; width: 150px; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .fallback-globe { animation: none; }
+            }
+        </style>
+        </head>
+        <body>
+            <section class="hero">
+                <div class="copy">
+                    <div class="eyebrow"><span class="pulse"></span> GEOSPATIAL INTELLIGENCE</div>
+                    <h2>See your land<br>in a new dimension.</h2>
+                    <p class="description">AI-assisted parcel mapping, built for a clearer view of every boundary.</p>
+                    <div class="coordinates">16.50° N &nbsp; 78.10° E &nbsp; / &nbsp; LIVE MODEL</div>
+                </div>
+                <div id="scene" aria-label="Animated 3D globe showing connected parcel locations"></div>
+                <div class="fallback-globe" id="fallback"></div>
+            </section>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+            <script>
+                (function () {
+                    if (!window.THREE) return;
+
+                    const sceneElement = document.getElementById('scene');
+                    const fallback = document.getElementById('fallback');
+                    const scene = new THREE.Scene();
+                    const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+                    camera.position.z = 5.2;
+
+                    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+                    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+                    renderer.setClearColor(0x000000, 0);
+                    sceneElement.appendChild(renderer.domElement);
+                    fallback.classList.add('hidden');
+
+                    const globe = new THREE.Group();
+                    scene.add(globe);
+                    const textureCanvas = document.createElement('canvas');
+                    textureCanvas.width = 1024;
+                    textureCanvas.height = 512;
+                    const context = textureCanvas.getContext('2d');
+                    context.fillStyle = '#103d55';
+                    context.fillRect(0, 0, 1024, 512);
+                    context.strokeStyle = 'rgba(105, 206, 190, .22)';
+                    context.lineWidth = 1;
+                    for (let x = 0; x <= 1024; x += 64) {
+                        context.beginPath(); context.moveTo(x, 0); context.lineTo(x, 512); context.stroke();
+                    }
+                    for (let y = 0; y <= 512; y += 64) {
+                        context.beginPath(); context.moveTo(0, y); context.lineTo(1024, y); context.stroke();
+                    }
+                    const landShapes = [
+                        [[80,105],[118,65],[180,52],[214,83],[198,117],[220,143],[192,166],[182,205],[149,216],[130,178],[105,164],[90,132]],
+                        [[222,245],[258,227],[286,246],[298,282],[282,325],[269,372],[243,417],[224,380],[228,336],[210,298]],
+                        [[430,112],[466,94],[501,108],[511,142],[493,169],[464,158],[444,140]],
+                        [[455,178],[505,166],[535,196],[526,246],[505,295],[480,322],[461,281],[443,228]],
+                        [[506,104],[553,81],[625,85],[681,103],[735,101],[797,129],[843,163],[827,195],[786,190],[762,220],[723,211],[695,238],[668,213],[637,220],[611,193],[570,190],[547,155]],
+                        [[788,274],[824,259],[856,272],[868,302],[844,327],[807,317]],
+                        [[330,64],[372,45],[403,60],[397,90],[363,101],[339,87]]
+                    ];
+                    landShapes.forEach(function (shape) {
+                        context.beginPath();
+                        context.moveTo(shape[0][0], shape[0][1]);
+                        shape.slice(1).forEach(function (point) { context.lineTo(point[0], point[1]); });
+                        context.closePath();
+                        context.fillStyle = '#32877e';
+                        context.fill();
+                        context.strokeStyle = '#80c4a7';
+                        context.lineWidth = 2;
+                        context.stroke();
+                    });
+
+                    const globeTexture = new THREE.CanvasTexture(textureCanvas);
+                    globeTexture.colorSpace = THREE.SRGBColorSpace;
+                    const earth = new THREE.Mesh(
+                        new THREE.SphereGeometry(1.45, 72, 48),
+                        new THREE.MeshPhongMaterial({ map: globeTexture, shininess: 18, specular: 0x438c83 })
+                    );
+                    globe.add(earth);
+                    globe.add(new THREE.Mesh(
+                        new THREE.SphereGeometry(1.47, 48, 32),
+                        new THREE.MeshBasicMaterial({ color: 0x91e3cf, wireframe: true, transparent: true, opacity: 0.12 })
+                    ));
+
+                    scene.add(new THREE.AmbientLight(0xa7e7d8, 1.7));
+                    const keyLight = new THREE.PointLight(0xffffff, 2.4);
+                    keyLight.position.set(-3, 3, 5);
+                    scene.add(keyLight);
+
+                    const orbitMaterial = new THREE.MeshBasicMaterial({ color: 0x168f99, transparent: true, opacity: 0.55 });
+                    const orbit = new THREE.Mesh(new THREE.TorusGeometry(1.78, 0.008, 8, 120), orbitMaterial);
+                    orbit.rotation.set(1.18, 0.12, -0.28);
+                    globe.add(orbit);
+
+                    function surfacePoint(latitude, longitude, radius) {
+                        const phi = (90 - latitude) * Math.PI / 180;
+                        const theta = (longitude + 180) * Math.PI / 180;
+                        return new THREE.Vector3(
+                            -radius * Math.sin(phi) * Math.cos(theta),
+                            radius * Math.cos(phi),
+                            radius * Math.sin(phi) * Math.sin(theta)
+                        );
+                    }
+
+                    const locations = [
+                        [16.5, 78.1], [51.5, -0.1], [37.8, -122.4], [-23.5, 133.8]
+                    ];
+                    const markers = [];
+                    locations.forEach(function (location, index) {
+                        const marker = new THREE.Mesh(
+                            new THREE.SphereGeometry(0.035, 16, 12),
+                            new THREE.MeshBasicMaterial({ color: index === 0 ? 0xffb45d : 0x87f0d3 })
+                        );
+                        marker.position.copy(surfacePoint(location[0], location[1], 1.49));
+                        globe.add(marker);
+                        markers.push(marker);
+                    });
+
+                    for (let index = 0; index < locations.length - 1; index++) {
+                        const start = surfacePoint(locations[index][0], locations[index][1], 1.5);
+                        const end = surfacePoint(locations[index + 1][0], locations[index + 1][1], 1.5);
+                        const middle = start.clone().add(end).normalize().multiplyScalar(1.9);
+                        const curve = new THREE.QuadraticBezierCurve3(start, middle, end);
+                        globe.add(new THREE.Line(
+                            new THREE.BufferGeometry().setFromPoints(curve.getPoints(48)),
+                            new THREE.LineBasicMaterial({ color: 0xffb45d, transparent: true, opacity: 0.75 })
+                        ));
+                    }
+
+                    const starGeometry = new THREE.BufferGeometry();
+                    const starPositions = [];
+                    for (let index = 0; index < 180; index++) {
+                        starPositions.push((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 3.5, -1 - Math.random() * 2);
+                    }
+                    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+                    scene.add(new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0x398f91, size: 0.012, transparent: true, opacity: 0.55 })));
+
+                    function resize() {
+                        const width = sceneElement.clientWidth;
+                        const height = sceneElement.clientHeight;
+                        if (!width || !height) return;
+                        renderer.setSize(width, height, false);
+                        camera.aspect = width / height;
+                        camera.updateProjectionMatrix();
+                    }
+                    window.addEventListener('resize', resize);
+                    resize();
+
+                    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                    function animate(time) {
+                        requestAnimationFrame(animate);
+                        if (!reducedMotion) {
+                            globe.rotation.y += 0.0018;
+                            globe.rotation.x = Math.sin(time * 0.00025) * 0.045;
+                            markers.forEach(function (marker, index) {
+                                const pulse = 1 + Math.sin(time * 0.004 + index) * 0.18;
+                                marker.scale.setScalar(pulse);
+                            });
+                        }
+                        renderer.render(scene, camera);
+                    }
+                    requestAnimationFrame(animate);
+                })();
+            </script>
+        </body>
+        </html>
+        """,
+        height=292,
+        scrolling=False
+    )
 
 
 # ============================================================
@@ -1710,6 +2002,8 @@ if page == "Dashboard":
         '</div>',
         unsafe_allow_html=True
     )
+
+    render_animated_globe()
 
     st.divider()
 
